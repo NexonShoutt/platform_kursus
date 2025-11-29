@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\Auth;
 
 class CourseController extends Controller
 {
-    // 1. DAFTAR KURSUS
+    // ==========================================
+    // AREA ADMIN & TEACHER (MANAJEMEN KURSUS)
+    // ==========================================
+
     public function index()
     {
-        // Logika: Jika Teacher, tampilkan kursus miliknya saja.
-        // Jika Admin, tampilkan semuanya.
         $user = Auth::user();
         
         if ($user->role === 'teacher') {
@@ -27,36 +28,37 @@ class CourseController extends Controller
         return view('admin.courses.index', compact('courses'));
     }
 
-    // 2. FORM TAMBAH
     public function create()
     {
-        // Kita butuh data kategori untuk dropdown
         $categories = Category::all();
         return view('admin.courses.create', compact('categories'));
     }
 
-    // 3. SIMPAN DATA
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:courses,name',
             'category_id' => 'required|exists:categories,id',
-            'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Validasi Gambar
+            'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             'description' => 'required',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
         ]);
 
-        // Upload Gambar
         $thumbnailPath = null;
         if ($request->hasFile('thumbnail')) {
             $thumbnailPath = $request->file('thumbnail')->store('thumbnails', 'public');
         }
 
+        $slug = Str::slug($request->name);
+        if (Course::where('slug', $slug)->exists()) {
+            $slug = $slug . '-' . time();
+        }
+
         Course::create([
             'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'teacher_id' => Auth::id(), // Otomatis set pengajar = user yang login
+            'slug' => $slug,
+            'teacher_id' => Auth::id(),
             'category_id' => $request->category_id,
             'thumbnail' => $thumbnailPath,
             'description' => $request->description,
@@ -67,10 +69,8 @@ class CourseController extends Controller
         return redirect()->route('courses.index')->with('success', 'Kursus berhasil dibuat!');
     }
 
-    // 4. FORM EDIT
     public function edit(Course $course)
     {
-        // Pastikan Teacher tidak mengedit kursus orang lain
         if (Auth::user()->role === 'teacher' && $course->teacher_id !== Auth::id()) {
             abort(403, 'Anda tidak berhak mengedit kursus ini.');
         }
@@ -79,24 +79,21 @@ class CourseController extends Controller
         return view('admin.courses.edit', compact('course', 'categories'));
     }
 
-    // 5. UPDATE DATA
     public function update(Request $request, Course $course)
     {
-        // Cek otorisasi lagi
         if (Auth::user()->role === 'teacher' && $course->teacher_id !== Auth::id()) {
             abort(403);
         }
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:courses,name,' . $course->id,
             'category_id' => 'required|exists:categories,id',
-            'thumbnail' => 'nullable|image|max:2048', // Nullable: tidak wajib ganti gambar
+            'thumbnail' => 'nullable|image|max:2048',
             'description' => 'required',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
         ]);
 
-        // Data yang akan diupdate
         $data = [
             'name' => $request->name,
             'slug' => Str::slug($request->name),
@@ -106,13 +103,10 @@ class CourseController extends Controller
             'end_date' => $request->end_date,
         ];
 
-        // Cek jika ada upload gambar baru
         if ($request->hasFile('thumbnail')) {
-            // Hapus gambar lama jika ada
             if ($course->thumbnail) {
                 Storage::disk('public')->delete($course->thumbnail);
             }
-            // Upload baru
             $data['thumbnail'] = $request->file('thumbnail')->store('thumbnails', 'public');
         }
 
@@ -121,19 +115,68 @@ class CourseController extends Controller
         return redirect()->route('courses.index')->with('success', 'Kursus berhasil diperbarui!');
     }
 
-    // 6. HAPUS DATA
     public function destroy(Course $course)
     {
         if (Auth::user()->role === 'teacher' && $course->teacher_id !== Auth::id()) {
             abort(403);
         }
 
-        // Hapus gambar dari penyimpanan
         if ($course->thumbnail) {
             Storage::disk('public')->delete($course->thumbnail);
         }
 
         $course->delete();
         return redirect()->route('courses.index')->with('success', 'Kursus dihapus!');
+    }
+
+    // Monitoring Siswa (Untuk Teacher)
+    public function students(Course $course)
+    {
+        if (Auth::user()->role === 'teacher' && $course->teacher_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $students = $course->students;
+        $totalContents = $course->contents->count();
+
+        foreach ($students as $student) {
+            $completedCount = $course->contents->filter(function ($content) use ($student) {
+                return $content->users->contains($student->id);
+            })->count();
+
+            $student->progress = $totalContents > 0 ? round(($completedCount / $totalContents) * 100) : 0;
+        }
+
+        return view('admin.courses.students', compact('course', 'students'));
+    }
+
+    // ==========================================
+    // AREA SISWA (DASHBOARD KURSUS SAYA) - INI YANG TADI HILANG
+    // ==========================================
+    
+    public function myCourses()
+    {
+        $user = Auth::user();
+
+        // Ambil kursus yang diikuti user, hitung progress
+        $courses = $user->courses()->with(['contents.users' => function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        }])->get()->map(function ($course) use ($user) {
+            
+            $totalContents = $course->contents->count();
+            
+            $completedContents = $course->contents->filter(function ($content) use ($user) {
+                return $content->users->contains($user->id);
+            })->count();
+
+            $percentage = $totalContents > 0 ? round(($completedContents / $totalContents) * 100) : 0;
+            
+            $course->progress = $percentage;
+            
+            return $course;
+        });
+
+        // Pastikan view ini ada (Langkah 2 di bawah)
+        return view('student.my-courses', compact('courses'));
     }
 }

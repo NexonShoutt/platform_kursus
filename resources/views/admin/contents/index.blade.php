@@ -10,10 +10,11 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                 
                 <div class="flex justify-between items-center mb-6">
-                    <a href="{{ route('courses.contents.create', $course->id) }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 transition">
+                    <a href="{{ route('courses.contents.create', $course->id) }}" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                         + Tambah Materi Baru
                     </a>
-                    <a href="{{ route('courses.index') }}" class="text-gray-600 hover:text-gray-900 underline">
+
+                    <a href="{{ route('courses.index') }}" class="text-sm text-gray-600 hover:text-gray-900 underline font-medium">
                         &larr; Kembali ke Daftar Kursus
                     </a>
                 </div>
@@ -24,37 +25,42 @@
                     </div>
                 @endif
 
-                <table class="w-full border-collapse border border-gray-200">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="border p-3 text-left w-16">Urutan</th>
-                            <th class="border p-3 text-left">Judul Materi</th>
-                            <th class="border p-3 text-center w-48">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($contents as $content)
-                            <tr class="hover:bg-gray-50">
-                                <td class="border p-3 text-center font-bold">{{ $content->sort_order }}</td>
-                                <td class="border p-3">{{ $content->title }}</td>
-                                <td class="border p-3 text-center">
-                                    <div class="flex justify-center gap-2">
-                                        <a href="{{ route('courses.contents.edit', [$course->id, $content->id]) }}" class="text-indigo-600 hover:text-indigo-900 font-bold mr-2">Edit</a>
-                                        <form action="{{ route('courses.contents.destroy', [$course->id, $content->id]) }}" method="POST" class="inline" onsubmit="return confirm('Hapus materi ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900 font-bold">Hapus</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-gray-200">
+                        <thead class="bg-gray-100">
                             <tr>
-                                <td colspan="3" class="border p-8 text-center text-gray-500 italic">Belum ada materi.</td>
+                                <th class="border p-3 text-left w-16 text-gray-700">Urutan</th>
+                                <th class="border p-3 text-left text-gray-700">Judul Materi</th>
+                                <th class="border p-3 text-center w-48 text-gray-700">Aksi</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @forelse($contents as $content)
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="border p-3 text-center font-bold text-gray-700">{{ $content->sort_order }}</td>
+                                    <td class="border p-3 text-gray-800 font-medium">{{ $content->title }}</td>
+                                    <td class="border p-3 text-center">
+                                        <div class="flex justify-center gap-4 text-sm">
+                                            <a href="{{ route('courses.contents.edit', [$course->id, $content->id]) }}" class="text-indigo-600 hover:text-indigo-900 font-bold hover:underline">Edit</a>
+                                            
+                                            <form action="{{ route('courses.contents.destroy', [$course->id, $content->id]) }}" method="POST" class="inline" onsubmit="return confirm('Hapus materi ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:text-red-900 font-bold hover:underline">Hapus</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="border p-8 text-center text-gray-500 italic bg-gray-50">
+                                        Belum ada materi. Silakan tambahkan materi pertama.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

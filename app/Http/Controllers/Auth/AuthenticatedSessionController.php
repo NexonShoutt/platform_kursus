@@ -26,9 +26,38 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        $user = auth()->user();
+
+        // 1. CEK STATUS AKTIF/NON-AKTIF
+        if ($user->is_active == 0) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['email' => 'Akun Anda dinonaktifkan oleh Admin.']);
+        }
+
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // 2. REDIRECT BERDASARKAN ROLE (LOGIKA BARU)
+        
+        // Jika Siswa -> Ke Halaman Belajar Saya
+        if ($user->role === 'student') {
+            return redirect()->route('my.courses');
+        }
+        
+        // Jika Admin -> Ke Manajemen User (Tabel User)
+        if ($user->role === 'admin') {
+            return redirect()->route('users.index');
+        }
+
+        // Jika Teacher -> Ke Manajemen Kursus (Tabel Kursus)
+        if ($user->role === 'teacher') {
+            return redirect()->route('courses.index');
+        }
+
+        // Default (jika ada role lain)
+        return redirect()->intended(route('home'));
     }
 
     /**
