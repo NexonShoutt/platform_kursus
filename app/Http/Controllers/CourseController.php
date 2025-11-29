@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Category;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -156,6 +157,8 @@ class CourseController extends Controller
     
     public function myCourses()
     {
+        // Tambahkan baris komentar ini agar VS Code paham siapa $user sebenarnya
+        /** @var \App\Models\User $user */
         $user = Auth::user();
 
         // Ambil kursus yang diikuti user, hitung progress
